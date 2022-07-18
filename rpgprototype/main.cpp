@@ -2,18 +2,21 @@
 #include <random.h>
 #include <item.h>
 #include <item_manager.h>
-
+#include <thread>
 #include <iostream>
 
 Player* MainCharacter = nullptr;
 Fightable* CurrentMonster = nullptr;
+//std::vector<Fightable*> monsters;
 int monsters_defeated = 0;
 
 void display_character_sheet() {
   system("clear");
   std::cout
     << "Your Character\n"
-    << "L: " << MainCharacter->us.GetLevel() << " XP: " << MainCharacter->us.GetCurrentEXP() << " NEXT: " << MainCharacter->us.GetEXPToNextLevel() << '\n'
+    << "Level: " << MainCharacter->us.GetLevel() << '\n'
+    << "XP: " << MainCharacter->us.GetCurrentEXP() << '\n'
+    << "Required next level (XP): " << MainCharacter->us.GetEXPToNextLevel() << '\n'
     << "HP: " << MainCharacter->us.GetCurrentHP() << "/" << MainCharacter->us.GetMaxHP() << '\n'
     << "Armor: " << MainCharacter->us.GetTotalArmor() << "  Resistance: " << MainCharacter->us.GetTotalElementRes() << '\n'
     << "STR: " << MainCharacter->us.GetTotalStrength() << " AGI: " << MainCharacter->us.GetTotalAgility() << " INT: " << MainCharacter->us.GetTotalIntellect() << '\n'
@@ -329,11 +332,15 @@ void create_monster(Fightable* in_out, const Player* base_calc) {
 
 
   in_out->xpos = Random::NTK(1, 11);
+  in_out->prev_xpos = in_out->xpos;
   in_out->ypos = Random::NTK(1, 11);
+  in_out->prev_ypos = in_out->ypos;
 
   while (the_map[in_out->xpos][in_out->ypos] == 'P' || the_map[in_out->xpos][in_out->ypos] == 'x') {
     in_out->xpos = Random::NTK(1, 11);
+    in_out->prev_xpos = in_out->xpos;
     in_out->ypos = Random::NTK(1, 11);
+    in_out->prev_ypos = in_out->ypos;
   }
   the_map[in_out->xpos][in_out->ypos] = 'M';
 
@@ -412,6 +419,9 @@ void fight_sequence(Player& player1) {
 
 }
 
+
+
+
 void moveplayeronmap(Player& player1) {
   // if they haven't move, return and do nothing
   if (player1.xpos == player1.prev_xpos && player1.ypos == player1.prev_ypos)
@@ -436,6 +446,35 @@ void moveplayeronmap(Player& player1) {
     player1.ypos = player1.prev_ypos;
   }
 }
+
+
+
+
+void movemonsteronmap(Fightable& monster) {
+    monster.xpos += Random::NTK(-1, 1);
+    monster.ypos += Random::NTK(-1, 1);
+
+    if (the_map[monster.xpos][monster.ypos] == 'P') {
+        fight_sequence(*MainCharacter);
+    }
+    if (the_map[monster.xpos][monster.ypos] != 'x' && (monster.xpos != monster.prev_xpos || monster.ypos != monster.prev_ypos)) {
+
+        the_map[monster.prev_xpos][monster.prev_ypos] = ' ';
+        the_map[monster.xpos][monster.ypos] = 'M';
+
+        monster.prev_xpos = monster.xpos;
+        monster.prev_ypos = monster.ypos;
+
+    } else {
+        monster.xpos = monster.prev_xpos;
+        monster.ypos = monster.prev_ypos;
+    }
+}
+
+
+
+
+
 
 void showmap() {
   system("clear");
@@ -491,11 +530,18 @@ int main(int argc, char** argv) {
 
   create_monster(CurrentMonster, MainCharacter);
 
+
   showmap();
 
   for (;;) {
-    std::cout << "\nmove(wasd), inv(i), charsheet(c): ";
-    char c = getchar();
+
+
+    std::cout << "\nmove(wasd), inv(i), charsheet(c): \n";
+//    std::cin.clear();
+//    char c = getchar();
+    char c{};
+    std::cin >> c;
+
 
     switch (c) {
     case 'w':
@@ -522,7 +568,11 @@ int main(int argc, char** argv) {
 
     std::cin.clear();
 
+
+
     moveplayeronmap(*MainCharacter);
+
+    movemonsteronmap(*CurrentMonster);
 
     if (MainCharacter->IsAlive()) {
       showmap();

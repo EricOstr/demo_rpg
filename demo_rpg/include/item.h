@@ -7,7 +7,7 @@ class ItemDelegate {
 public:
   std::string Name;
 protected:
-  virtual ~ItemDelegate() = 0;
+  virtual ~ItemDelegate() = default;
   ItemDelegate(std::string name) : Name(name) {}
   friend class Item;
 };
@@ -17,7 +17,7 @@ public:
   const std::uint32_t UniqueId;
   CoreStats Stats;
 protected:
-  virtual ~EquipmentDelegate() = 0;
+  virtual ~EquipmentDelegate() = default;
   EquipmentDelegate(std::string name, CoreStats cstats);
 private:
 };

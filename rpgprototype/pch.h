@@ -38,9 +38,11 @@ struct Fightable {
   }
   bool IsAlive() { return (monster.HP.GetCurrent() > 0); }
   Monster monster;
-  int xpos = 3;
-  int ypos = 3;
-  int xpworth;
+  int prev_xpos{};
+  int prev_ypos{};
+  int xpos{};
+  int ypos{};
+  int xpworth{};
   Fightable() = delete;
 };
 
