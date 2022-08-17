@@ -10,7 +10,7 @@ The goal of the game is to slay as many monsters as possible. On startup, the pl
 * Implementing multithreading
 * Adding multiple monsters
 * CMake implementation
-* Unit Testing with [GoogleTest](https://github.com/google/googletest)
+* Unit Testing static library 'demo_rpg' with GoogleTest
 
 
 Although the game in its current form is functional, some glitches exist.
