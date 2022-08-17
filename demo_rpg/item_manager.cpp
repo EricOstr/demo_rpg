@@ -2,38 +2,39 @@
 
 
 [[nodiscard]] Item* ItemManager::CreateArmor(std::string name, CoreStats cstats, ARMORSLOT slot) {
-  Item* temp_item = new Item(new Armor(name, cstats, slot));
-  return temp_item;
+    return new Item(new Armor(name, cstats, slot));
 }
+
 void ItemManager::CastItemToArmor(const Item* in, Armor*& out) {
-  if (!in) return;
-  out = dynamic_cast<Armor*>(in->_data);
+    if (!in) return;
+    out = dynamic_cast<Armor*>(in->_data);
 }
+
 bool ItemManager::IsItemArmor(const Item* in) {
-  if (dynamic_cast<Armor*>(in->_data)) return true;
-  else return false;
+    if (dynamic_cast<Armor*>(in->_data)) return true;
+    else return false;
 }
 
 
 
 [[nodiscard]] Item* ItemManager::CreateWeapon(std::string name, CoreStats cstats, WEAPONSLOT slot, damagetype min, damagetype max, bool twohanded) {
-  Item* temp_item = new Item(new Weapon(name, cstats, slot, min, max, twohanded));
-  return temp_item;
+    return new Item(new Weapon(name, cstats, slot, min, max, twohanded));;
 }
+
 void ItemManager::CastItemToWeapon(const Item* in, Weapon*& out) {
-  if (!in) return;
-  out = dynamic_cast<Weapon*>(in->_data);
-}
-bool ItemManager::IsItemWeapon(const Item* in) {
-  if (dynamic_cast<Weapon*>(in->_data)) return true;
-  else return false;
+    if (!in) return;
+    out = dynamic_cast<Weapon*>(in->_data);
 }
 
+    bool ItemManager::IsItemWeapon(const Item* in) {
+    if (dynamic_cast<Weapon*>(in->_data)) return true;
+    else return false;
+}
 
 
-[[nodiscard]] Item* ItemManager::CreatePotion(std::string name, welltype Heal, itemcount qaunt, Buff* _buff) {
-  Item* temp_item = new Item(new Potion(name, Heal, (qaunt == 0) ? 1 : qaunt, _buff));
-  return temp_item;
+
+[[nodiscard]] Item* ItemManager::CreatePotion(std::string name, welltype Heal, itemcount quant, Buff* _buff) {
+    return new Item(new Potion(name, Heal, (quant == 0) ? 1 : quant, _buff));
 }
 void ItemManager::CastItemToPotion(const Item* in, Potion*& out) {
   if (!in) return;
@@ -46,14 +47,11 @@ bool ItemManager::IsItemPotion(const Item* in) {
 
 
 
-// character item helpers
 // returns true if equip was successful
 bool ItemManager::Equip(Item* item_to_equip, PlayerCharacter* p_char) {
-  if (!item_to_equip->GetData() || !item_to_equip || !p_char)
-    return false;
 
-  if (IsItemPotion(item_to_equip))
-    return false;
+  if (!item_to_equip->GetData() || !item_to_equip || !p_char) return false;
+  if (IsItemPotion(item_to_equip)) return false;
 
   Armor* armor = dynamic_cast<Armor*>(item_to_equip->_data);
   if (armor) {
@@ -94,8 +92,8 @@ bool ItemManager::Equip(Item* item_to_equip, PlayerCharacter* p_char) {
 
 // returns true if the potion was used, false otherwise
 bool ItemManager::Use(Item* item_to_use, PlayerCharacter* p_char) {
-  if (!item_to_use->GetData() || !item_to_use || !p_char)
-    return false;
+    
+  if (!item_to_use->GetData() || !item_to_use || !p_char) return false;
 
   Potion* potion = nullptr;
   CastItemToPotion(item_to_use, potion);
@@ -107,15 +105,17 @@ bool ItemManager::Use(Item* item_to_use, PlayerCharacter* p_char) {
         p_char->TakeDamage(potion->HealAmount);
       }
       p_char->ApplyBuff(*potion->_buff);
-    } else {  // healing potion only, no buff/debuff, only use if not already max health 
-      if (p_char->IsMaxHealth()) { return false; } else { p_char->Heal(potion->HealAmount); }
+    }
+    else {  // healing potion only, no buff/debuff, only use if not already max health
+      if (p_char->IsMaxHealth()) return false;
+      else p_char->Heal(potion->HealAmount);
     }
 
     // we used the potion, reduce quantity
     potion->Quantity--;
     if (potion->Quantity == 0) {
       item_to_use->_marked_for_deletion = true;
-      p_char->cleanup_backpack();  // assumes using it out of player inventory (todo: refactor)
+      p_char->cleanup_backpack();  // assumes using it out of player inventory
     }
     return true;
   }
@@ -123,10 +123,8 @@ bool ItemManager::Use(Item* item_to_use, PlayerCharacter* p_char) {
 }
 
 bool ItemManager::MoveToBackpack(Item* item_to_move, PlayerCharacter* p_char) {
-  if (!item_to_move || !p_char)
-    return false;
-  if (!item_to_move->GetData())
-    return false;
+  if (!item_to_move || !p_char) return false;
+  if (!item_to_move->GetData()) return false;
 
   p_char->move_to_backpack(item_to_move);
   return true;

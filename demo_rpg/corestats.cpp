@@ -10,8 +10,7 @@ CoreStats::CoreStats() {
 }
 
 CoreStats::CoreStats(stattype s, stattype i, stattype ag, stattype arm, stattype eres)
-  : Strength(s), Intellect(i), Agility(ag), Armor(arm), ElementRes(eres) {
-}
+  : Strength(s), Intellect(i), Agility(ag), Armor(arm), ElementRes(eres) {}
 
 CoreStats::CoreStats(stattype all) : Strength(all), Intellect(all), Agility(all), Armor(all), ElementRes(all) {}
 

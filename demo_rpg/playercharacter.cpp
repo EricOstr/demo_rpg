@@ -2,31 +2,25 @@
 #include "random.h"
 #include <memory>
 
-PlayerCharacterDelegate::~PlayerCharacterDelegate() {}
 
 
-void PlayerCharacterDelegate::GiveEXP(const exptype amt) noexcept {
-  _current_exp += amt;
-  while (check_if_leveled()) {}
-}
 
 PlayerCharacterDelegate::PlayerCharacterDelegate() : StatBlock(0u, 0u) {
-  _current_level = (leveltype)1u;
-  _current_exp = (exptype)0u;
-  _exp_to_next_level = LEVEL2AT;
+    _current_level = (leveltype)1u;
+    _current_exp = (exptype)0u;
+    _exp_to_next_level = LEVEL2AT;
 }
 
-leveltype PlayerCharacterDelegate::GetLevel() const noexcept {
-  return _current_level;
+PlayerCharacterDelegate::~PlayerCharacterDelegate() {}
+
+void PlayerCharacterDelegate::GiveEXP(const exptype amt) noexcept {
+    _current_exp += amt;
+    while (check_if_leveled()) {}
 }
 
-exptype PlayerCharacterDelegate::GetCurrentEXP() const noexcept {
-  return _current_exp;
-}
-
-exptype PlayerCharacterDelegate::GetEXPToNextLevel() const noexcept {
-  return _exp_to_next_level;
-}
+leveltype PlayerCharacterDelegate::GetLevel() const noexcept { return _current_level; }
+exptype PlayerCharacterDelegate::GetCurrentEXP() const noexcept { return _current_exp; }
+exptype PlayerCharacterDelegate::GetEXPToNextLevel() const noexcept { return _exp_to_next_level; }
 
 const bool PlayerCharacterDelegate::check_if_leveled() noexcept {
   static const leveltype LEVELSCALAR = 2u;
@@ -39,48 +33,28 @@ const bool PlayerCharacterDelegate::check_if_leveled() noexcept {
   return false;
 }
 
-void PlayerCharacter::move_to_backpack(Item* item_to_move) noexcept {
-  _backpack.push_back(item_to_move);
-}
-
-void PlayerCharacter::cleanup_backpack() noexcept {
-  const auto to_remove = std::stable_partition(_backpack.begin(), _backpack.end(),
-    [](const Item* i) -> bool { return !i->GetMarkedForDeletion(); }
-  );
-  std::for_each(to_remove, _backpack.end(), [](Item*& i) { ItemManager::DeleteItem(i); });
-  _backpack.erase(to_remove, _backpack.end());
 
 
-  const auto to_remove_ref = std::stable_partition(_backpack.begin(), _backpack.end(),
-    [](const Item* i) -> bool { return !i->GetMarkedAsBackpackRefGone(); }
-  );
-  _backpack.erase(to_remove_ref, _backpack.end());
-}
+
 
 PlayerCharacter::PlayerCharacter(PlayerCharacterDelegate* pc) : _player_class(pc) {
-  auto i = 0;
-  for (i = 0; i < (unsigned long long)ARMORSLOT::NUM_SLOTS; i++) {
-    _equipped_armor[i] = nullptr;
-  }
-  for (i = 0; i < (unsigned long long)WEAPONSLOT::NUM_SLOTS; i++) {
-    _equipped_weapons[i] = nullptr;
-  }
+
+    for (auto i = 0; i < (unsigned long long)ARMORSLOT::NUM_SLOTS; i++)
+        _equipped_armor[i] = nullptr;
+    for (auto i = 0; i < (unsigned long long)WEAPONSLOT::NUM_SLOTS; i++)
+        _equipped_weapons[i] = nullptr;
 }
 
 PlayerCharacter::~PlayerCharacter() {
-  delete _player_class;
-  _player_class = nullptr;
-  auto i = 0;
-  for (i = 0; i < (unsigned long long)ARMORSLOT::NUM_SLOTS; i++) {
-    if (_equipped_armor[i]) {
-      ItemManager::DeleteItem(_equipped_armor[i]);
-    }
-  }
-  for (i = 0; i < (unsigned long long)WEAPONSLOT::NUM_SLOTS; i++) {
-    if (_equipped_weapons[i]) {
-      ItemManager::DeleteItem(_equipped_weapons[i]);
-    }
-  }
+
+    delete _player_class;
+    _player_class = nullptr;
+
+    for (auto i = 0; i < (unsigned long long)ARMORSLOT::NUM_SLOTS; i++)
+        if (_equipped_armor[i]) ItemManager::DeleteItem(_equipped_armor[i]);
+
+    for (auto i = 0; i < (unsigned long long)WEAPONSLOT::NUM_SLOTS; i++)
+        if (_equipped_weapons[i]) ItemManager::DeleteItem(_equipped_weapons[i]);
 }
 
 // Getters
@@ -103,9 +77,7 @@ const stattype PlayerCharacter::GetTotalStrength() const noexcept {
     Armor* armor = nullptr;
     for (auto i = 0; i < (unsigned long long)ARMORSLOT::NUM_SLOTS; i++) {
       ItemManager::CastItemToArmor(_equipped_armor[i], armor);
-      if (armor) {
-        str_from_armor += armor->Stats.Strength;
-      }
+      if (armor) str_from_armor += armor->Stats.Strength;
       armor = nullptr;
     }
   }
@@ -114,9 +86,7 @@ const stattype PlayerCharacter::GetTotalStrength() const noexcept {
     Weapon* weapon = nullptr;
     for (auto i = 0; i < (unsigned long long)WEAPONSLOT::NUM_SLOTS; i++) {
       ItemManager::CastItemToWeapon(_equipped_weapons[i], weapon);
-      if (weapon) {
-        str_from_weapons += weapon->Stats.Strength;
-      }
+      if (weapon) str_from_weapons += weapon->Stats.Strength;
       weapon = nullptr;
     }
   }
@@ -128,9 +98,7 @@ const stattype PlayerCharacter::GetTotalIntellect() const noexcept {
     Armor* armor = nullptr;
     for (auto i = 0; i < (unsigned long long)ARMORSLOT::NUM_SLOTS; i++) {
       ItemManager::CastItemToArmor(_equipped_armor[i], armor);
-      if (armor) {
-        int_from_armor += armor->Stats.Intellect;
-      }
+      if (armor) int_from_armor += armor->Stats.Intellect;
       armor = nullptr;
     }
   }
@@ -204,9 +172,7 @@ const stattype PlayerCharacter::GetTotalElementRes() const noexcept {
     Armor* armor = nullptr;
     for (auto i = 0; i < (unsigned long long)ARMORSLOT::NUM_SLOTS; i++) {
       ItemManager::CastItemToArmor(_equipped_armor[i], armor);
-      if (armor) {
-        resist_from_armor += armor->Stats.ElementRes;
-      }
+      if (armor) resist_from_armor += armor->Stats.ElementRes;
       armor = nullptr;
     }
   }
@@ -215,14 +181,14 @@ const stattype PlayerCharacter::GetTotalElementRes() const noexcept {
     Weapon* weapon = nullptr;
     for (auto i = 0; i < (unsigned long long)WEAPONSLOT::NUM_SLOTS; i++) {
       ItemManager::CastItemToWeapon(_equipped_weapons[i], weapon);
-      if (weapon) {
-        elres_from_weapons += weapon->Stats.ElementRes;
-      }
+      if (weapon) elres_from_weapons += weapon->Stats.ElementRes;
       weapon = nullptr;
     }
   }
   return _player_class->GetTotalElementRes() + resist_from_armor + elres_from_weapons;
 }
+
+
 const std::vector<Ability*> PlayerCharacter::GetAbilityList() const noexcept { return _player_class->Abilities; }
 const std::vector<Buff> PlayerCharacter::GetBuffList() const noexcept { return _player_class->Buffs; }
 const std::vector<Item*> PlayerCharacter::GetBackpackList() const noexcept { return _backpack; }
@@ -240,9 +206,7 @@ const damagetype PlayerCharacter::MeleeAttack() const noexcept {
 
   const Weapon* equipped_weapon = GetEquippedWeaponAt((unsigned long long)WEAPONSLOT::MELEE);
   // if weapon exists get the damage, else the base damage stays 0
-  if (equipped_weapon) {
-    tmp_damage_done += Random::NTK(equipped_weapon->MinDamage, equipped_weapon->MaxDamage);
-  }
+  if (equipped_weapon) tmp_damage_done += Random::NTK(equipped_weapon->MinDamage, equipped_weapon->MaxDamage);
 
   // add 1/4 of str as bonus melee damage
   tmp_damage_done += damagetype(GetTotalStrength() / 4.f);
@@ -265,6 +229,23 @@ const damagetype PlayerCharacter::RangedAttack() const noexcept {
   if (tmp_damage_done < 1) tmp_damage_done = 1;
 
   return tmp_damage_done;
+}
+
+void PlayerCharacter::move_to_backpack(Item* item_to_move) noexcept {
+    _backpack.push_back(item_to_move);
+}
+
+void PlayerCharacter::cleanup_backpack() noexcept {
+    const auto to_remove = std::stable_partition(_backpack.begin(), _backpack.end(),
+                                                 [](const Item* i) -> bool { return !i->GetMarkedForDeletion(); }
+    );
+    std::for_each(to_remove, _backpack.end(), [](Item*& i) { ItemManager::DeleteItem(i); });
+    _backpack.erase(to_remove, _backpack.end());
+
+    const auto to_remove_ref = std::stable_partition(_backpack.begin(), _backpack.end(),
+                                                     [](const Item* i) -> bool { return !i->GetMarkedAsBackpackRefGone(); }
+    );
+    _backpack.erase(to_remove_ref, _backpack.end());
 }
 
 // Modifiers

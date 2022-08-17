@@ -2,7 +2,7 @@
 #include "pc_macros.h"
 
 Warrior::Warrior() : PlayerCharacterDelegate() {
-  //MP = std::make_unique<PointWell>(BASEMP, BASEMP);  // be sure to init before PCCONSTRUCT MACRO
+
   PCCONSTRUCT;
 
 }

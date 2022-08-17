@@ -7,13 +7,13 @@
 
 Player* MainCharacter = nullptr;
 Fightable* CurrentMonster = nullptr;
-//std::vector<Fightable*> monsters;
 int monsters_defeated = 0;
 
 void display_character_sheet() {
   system("clear");
   std::cout
-    << "Your Character\n"
+    << "CHARACTER SHEET\n"
+    << "---------------\n\n"
     << "Level: " << MainCharacter->us.GetLevel() << '\n'
     << "XP: " << MainCharacter->us.GetCurrentEXP() << '\n'
     << "Required next level (XP): " << MainCharacter->us.GetEXPToNextLevel() << '\n'
@@ -269,24 +269,27 @@ bool combat_ability_selection() {
 }
 
 Item* drop_random_item() {
-  // 8 armor items, 2 weapon types, 1 potion : 11 different drop types
+
   int drop_seed = Random::NTK(1, 100);
   if (drop_seed < 6) {
     std::string name;
     CoreStats local_stats;
     int magical_power = Random::NTK(0, 2);
     switch (magical_power) {
-    case 0: name = "Helmet";
-      local_stats = CoreStats(0, 0, 0, 1, 0);
-      break;
-    case 1: name = "+1 Helmet";
-      local_stats = CoreStats(1, 1, 1, 2, 1);
-      break;
-    case 2: name = "+2 Helmet";
-      local_stats = CoreStats(2, 2, 2, 3, 2);
-      break;
+    case 0:
+        name = "Helmet";
+        local_stats = CoreStats(0, 0, 0, 1, 0);
+        break;
+    case 1:
+        name = "+1 Helmet";
+        local_stats = CoreStats(1, 1, 1, 2, 1);
+        break;
+    case 2:
+        name = "+2 Helmet";
+        local_stats = CoreStats(2, 2, 2, 3, 2);
+        break;
     default:
-      break;
+        break;
     }
     return ItemManager::CreateArmor(name, local_stats, ARMORSLOT::HEAD);
   } else if (drop_seed < 12) {
@@ -314,8 +317,7 @@ Item* drop_random_item() {
 }
 
 void create_monster(Fightable* in_out, const Player* base_calc) {
-  if (!base_calc)
-    return;
+  if (!base_calc) return;
 
   if (in_out) {
     delete in_out;
@@ -323,13 +325,12 @@ void create_monster(Fightable* in_out, const Player* base_calc) {
   }
 
   int lowest_hp = base_calc->us.GetLevel() * 2;
-  int max_hp = base_calc->us.GetLevel() * 8;
+  int max_hp = (base_calc->us.GetLevel()) * (base_calc->us.GetLevel()) * 8;
 
   int lowest_dam = base_calc->us.GetLevel();
-  int max_dam = base_calc->us.GetLevel() * 2;
+  int max_dam = (base_calc->us.GetLevel()) * (base_calc->us.GetLevel()) * 2;
 
   in_out = new Fightable(Random::NTK(lowest_hp, max_hp), lowest_dam, max_dam);
-
 
   in_out->xpos = Random::NTK(1, 11);
   in_out->prev_xpos = in_out->xpos;
@@ -360,9 +361,9 @@ void fight_sequence(Player& player1) {
       // display fight interface
       system("clear");
       std::cout
-        << "Player         vs       Monster\n"
-        << "hp: " << player1.us.GetCurrentHP() << '/' << player1.us.GetMaxHP() << "                  hp: " << CurrentMonster->monster.HP.GetCurrent() << '/' << CurrentMonster->monster.HP.GetMax() << '\n'
-        << "action(a:attack,i:inv,b:abilites): ";
+        << "\nPlayer         vs       Monster\n"
+        << "hp: " << player1.us.GetCurrentHP() << '/' << player1.us.GetMaxHP() << "                  hp: " << CurrentMonster->monster.HP.GetCurrent() << '/' << CurrentMonster->monster.HP.GetMax() << '\n\n'
+        << "\naction(a:attack,i:inv,b:abilites): ";
       action = getchar();
       switch (action) {
       case 'a':
@@ -393,7 +394,7 @@ void fight_sequence(Player& player1) {
   }
 
   if (player1.IsAlive()) {
-    std::cout << "You Won vs the Monster!\n";
+    std::cout << "\nYou Won vs the Monster!\n";
 
     // gain xp
     player1.us.GainEXP(CurrentMonster->xpworth);
@@ -403,14 +404,14 @@ void fight_sequence(Player& player1) {
     Item* item_drop = drop_random_item();
     if (item_drop) {
       ItemManager::MoveToBackpack(item_drop, &player1.us);
-      std::cout << "item recieved: " << item_drop->GetData()->Name << '\n';
+      std::cout << "Item recieved: " << item_drop->GetData()->Name << '\n';
     }
 
     // note monsters defeated count and prepare the next one
     monsters_defeated++;
     create_monster(CurrentMonster, &player1);
   } else {
-    std::cout << "You were defeated by the Monster!\n";
+    std::cout << "\nYou were defeated by the Monster!\n";
   }
 
   std::cin.ignore(100, '\n');
@@ -473,9 +474,6 @@ void movemonsteronmap(Fightable& monster) {
 
 
 
-
-
-
 void showmap() {
   system("clear");
   for (int i = 0; i < 12; i++) {
@@ -485,6 +483,8 @@ void showmap() {
     std::cout << '\n';
   }
 }
+
+
 
 int main(int argc, char** argv) {
 
@@ -530,18 +530,15 @@ int main(int argc, char** argv) {
 
   create_monster(CurrentMonster, MainCharacter);
 
-
   showmap();
 
   for (;;) {
-
 
     std::cout << "\nmove(wasd), inv(i), charsheet(c): \n";
 //    std::cin.clear();
 //    char c = getchar();
     char c{};
     std::cin >> c;
-
 
     switch (c) {
     case 'w':
@@ -568,17 +565,13 @@ int main(int argc, char** argv) {
 
     std::cin.clear();
 
-
-
     moveplayeronmap(*MainCharacter);
 
     movemonsteronmap(*CurrentMonster);
 
-    if (MainCharacter->IsAlive()) {
-      showmap();
-    } else {
-      break;
-    }
+    if (MainCharacter->IsAlive()) showmap();
+    else break;
+
   }
 
   std::cout << "Total Monsters Defeated: " << monsters_defeated << '\n';

@@ -1,16 +1,10 @@
 #include "buff.h"
 
 
-Buff::Buff() {
-  Name = "undefined";
-  Duration = 2u;
-  BuffedStats = CoreStats();
-  isDebuff = false;
-}
+Buff::Buff(): Name{"undefined"}, Duration{2u}, isDebuff{false}, BuffedStats{CoreStats()} {}
 
 Buff::Buff(const char* name, stattype str, stattype intel, stattype agi, stattype arm, stattype elres, uint16_t dur, bool isdebuff)
-  : Name(name), BuffedStats(str, intel, agi, arm, elres), Duration(dur), isDebuff(isdebuff) {
-}
+  : Name(name), BuffedStats(str, intel, agi, arm, elres), Duration(dur), isDebuff(isdebuff) {}
 
 Buff::Buff(const char* name, CoreStats cs, uint16_t dur, bool isdebuff)
   : Name(name), BuffedStats(cs), Duration(dur), isDebuff(isdebuff) {
