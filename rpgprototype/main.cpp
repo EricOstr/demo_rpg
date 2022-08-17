@@ -10,7 +10,7 @@
 
 Player* MainCharacter = nullptr;
 
-int num_monsters = 1;
+int num_monsters = 3;
 int monsters_defeated = 0;
 
 std::unordered_set<Fightable*> monster_collection;
@@ -20,11 +20,31 @@ std::vector<std::thread> monster_threads;
 
 std::mutex gLock;
 
+bool end_game;
 
 
 
 
 
+void showmap() {
+    // Print to terminal based on pointer_map
+
+    clear();
+    for(int i=0; i<12; i++){
+        for(int j=0; j<13; j++){
+            if(dynamic_cast<Block*>(ptr_map[i][j]))
+                std::cout<<'x';
+            else if(dynamic_cast<Fightable*>(ptr_map[i][j]) && dynamic_cast<Fightable*>(ptr_map[i][j])->IsAlive())
+                std::cout<<'M';
+            else if(dynamic_cast<Player*>(ptr_map[i][j]) && dynamic_cast<Player*>(ptr_map[i][j])->IsAlive())
+                std::cout<<'P';
+            else
+                std::cout<< " ";
+        }
+        std::cout << '\n';
+    }
+    std::cout << '\n' << "move(wasd), inv(i), charsheet(c): \n";
+}
 
 
 void fill_blocks_ptr_map(){
@@ -415,13 +435,14 @@ void fight_sequence(Fightable* fightable) {
 
         while (action_taken == FightOptions::NONE) {
             // display fight interface
+
             clear();
-            std::cin.clear();
             std::cout
                     << "\n\nPlayer         vs       Monster\n"
                     << "hp: " << MainCharacter->us.GetCurrentHP() << '/' << MainCharacter->us.GetMaxHP() << "                  hp: "
                     << fightable->monster.HP.GetCurrent() << '/' << fightable->monster.HP.GetMax()
-                    << "\n\naction(a:attack, i:inv, b:abilites): ";
+                    << "\n\naction(a:attack, i:inv, b:abilites):" << '\n';
+
             action = getchar();
             switch (action) {
                 case 'a':
@@ -435,6 +456,8 @@ void fight_sequence(Fightable* fightable) {
                     action_taken = (combat_ability_selection(fightable)) ? FightOptions::ABILITY : FightOptions::NONE;
                     break;
                 default:
+                    std::cout << "actionL: "<< action << std::endl;
+
                     break;
             }
         }
@@ -450,7 +473,8 @@ void fight_sequence(Fightable* fightable) {
     }
 
     if (MainCharacter->IsAlive()) {
-        std::cout << "\nYou Won vs the Monster!\n";
+        clear();
+        std::cout << "\nVICTORY!\n\n";
 
         // gain xp
         MainCharacter->us.GainEXP(fightable->xpworth);
@@ -466,11 +490,12 @@ void fight_sequence(Fightable* fightable) {
         monsters_defeated++;
 
     } else {
-        std::cout << "\nYou were defeated by the Monster!\n";
+        std::cout << "\nDEFEAT!\n\n";
+        end_game = true;
     }
 
     std::cin.ignore(100, '\n');
-    std::cout << "\npress Enter to Continue\n";
+    std::cout << "\npress enter to continue\n";
     char a = getchar();
 }
 
@@ -481,34 +506,31 @@ void monster_thread_fn(){
 
     Fightable* curr_monster;
 
-    while(true){
+    while(!end_game){
 
         curr_monster = create_monster();
 
-        while(curr_monster->IsAlive()){
+        while(curr_monster->IsAlive() && !end_game){
 
             // Sleep random duration
-            std::this_thread::sleep_for(std::chrono::milliseconds (Random::NTK(1000,5000)));
+            std::this_thread::sleep_for(std::chrono::milliseconds (Random::NTK(250,1000)));
+//            std::this_thread::sleep_for(std::chrono::seconds(1));
 
             gLock.lock();
 
-            if(curr_monster->IsAlive()){
+            if(curr_monster->IsAlive() && !end_game){
 
                 int next_xpos = curr_monster->xpos + Random::NTK(-1, 1);
                 int next_ypos = curr_monster->ypos + Random::NTK(-1, 1);
 
-                // Did not move
-                if (next_xpos == curr_monster->prev_xpos && next_ypos == curr_monster->prev_ypos)
-                    return;
-
                 // Landed on Player
                 if(dynamic_cast<Player*>(ptr_map[next_xpos][next_ypos])){
                     fight_sequence(curr_monster);
-                    break;
                 }
 
-                    // Move monster
-                else if(!dynamic_cast<Block*>(ptr_map[next_xpos][next_ypos])){
+                // Move monster
+                else if(!dynamic_cast<Block*>(ptr_map[next_xpos][next_ypos])
+                        && (next_xpos != curr_monster->prev_xpos || next_ypos != curr_monster->prev_ypos)){
 
                     curr_monster->prev_xpos = curr_monster->xpos;
                     curr_monster->prev_ypos = curr_monster->ypos;
@@ -519,45 +541,19 @@ void monster_thread_fn(){
                     ptr_map[curr_monster->xpos][curr_monster->ypos] = curr_monster;
 
                 }
+                if(curr_monster->IsAlive() && !end_game) showmap();
+
             }
 
             gLock.unlock();
+
+
         }
 
         delete_monster(curr_monster);
     }
+    return;
 }
-
-
-
-
-
-
-
-
-void move_monsters() {
-
-    std::unordered_set<Fightable*> temp = monster_collection;
-
-    for(Fightable* fightable : temp){
-
-
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -574,7 +570,7 @@ void move_player() {
         fight_sequence(dynamic_cast<Fightable*>(ptr_map[MainCharacter->xpos][MainCharacter->ypos]));
 
     // Move player
-    if(!dynamic_cast<Block*>(ptr_map[MainCharacter->xpos][MainCharacter->ypos])){
+    else if(!dynamic_cast<Block*>(ptr_map[MainCharacter->xpos][MainCharacter->ypos])){
         ptr_map[MainCharacter->prev_xpos][MainCharacter->prev_ypos] = nullptr;
         ptr_map[MainCharacter->xpos][MainCharacter->ypos] = MainCharacter;
         MainCharacter->prev_xpos = MainCharacter->xpos;
@@ -596,20 +592,7 @@ void move_player() {
 
 
 
-void showmap() {
-    // Print to terminal based on pointer_map
 
-    clear();
-    for(int i=0; i<12; i++){
-        for(int j=0; j<12; j++){
-            if(dynamic_cast<Block*>(ptr_map[i][j]))             std::cout<<'x';
-            else if(dynamic_cast<Fightable*>(ptr_map[i][j]))    std::cout<<'M';
-            else if(dynamic_cast<Player*>(ptr_map[i][j]))       std::cout<<'P';
-            else                                                std::cout<< " ";
-        }
-        std::cout << '\n';
-    }
-}
 
 
 
@@ -659,15 +642,15 @@ int main(int argc, char** argv) {
     ItemManager::MoveToBackpack(drop_random_item(), &MainCharacter->us);
     ItemManager::MoveToBackpack(drop_random_item(), &MainCharacter->us);
 
-    while(monster_collection.size() < num_monsters){
+    while(num_monsters--){
         monster_threads.push_back(std::thread(monster_thread_fn));
     }
 
     showmap();
 
-    for (;;) {
+    while(!end_game){
 
-        std::cout << '\n' << "move(wasd), inv(i), charsheet(c): \n";
+
         //    char c = getchar();
         char c{};
         std::cin.clear();
@@ -698,17 +681,23 @@ int main(int argc, char** argv) {
           break;
         }
 
-        std::cin.clear();
+//        std::cin.clear();
 
         move_player();
 
-        if (MainCharacter->IsAlive()) showmap();
-        else break;
+        if (MainCharacter->IsAlive())   showmap();
 
         gLock.unlock();
+
     }
 
+
+
+    for(auto& thread : monster_threads)
+        thread.join();
+
     std::cout << "Total Monsters Defeated: " << monsters_defeated << '\n';
+
     char c = getchar();
     return EXIT_SUCCESS;
 }
