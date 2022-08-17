@@ -4,13 +4,42 @@
 #include <item_manager.h>
 #include <thread>
 #include <iostream>
+#include <unordered_set>
+#include <thread>
+#include <chrono>
 
 Player* MainCharacter = nullptr;
-Fightable* CurrentMonster = nullptr;
+
+int num_monsters = 1;
 int monsters_defeated = 0;
 
+std::unordered_set<Fightable*> monster_collection;
+Entity* ptr_map[12][13]{};
+std::vector<std::thread> monster_threads;
+
+
+std::mutex gLock;
+
+
+
+
+
+
+
+
+void fill_blocks_ptr_map(){
+    for (int i = 0; i < 12; i++) {
+        for (int j = 0; j < 13; j++) {
+            if(i==0 || i==11) ptr_map[i][j] = new Block();
+            if(j==0 || j==12) ptr_map[i][j] = new Block();
+        }
+    }
+}
+
+
+
 void display_character_sheet() {
-  system("clear");
+  clear();
   std::cout
     << "CHARACTER SHEET\n"
     << "---------------\n\n"
@@ -20,7 +49,7 @@ void display_character_sheet() {
     << "HP: " << MainCharacter->us.GetCurrentHP() << "/" << MainCharacter->us.GetMaxHP() << '\n'
     << "Armor: " << MainCharacter->us.GetTotalArmor() << "  Resistance: " << MainCharacter->us.GetTotalElementRes() << '\n'
     << "STR: " << MainCharacter->us.GetTotalStrength() << " AGI: " << MainCharacter->us.GetTotalAgility() << " INT: " << MainCharacter->us.GetTotalIntellect() << '\n'
-    << "\n\nEquipped Gear\n";
+    << "\n\nEquipped Gear:\n\n";
   if (MainCharacter->us.GetEquippedWeaponAt((unsigned long long)WEAPONSLOT::MELEE)) {
     std::string weapon_name = MainCharacter->us.GetEquippedWeaponAt((unsigned long long)WEAPONSLOT::MELEE)->Name;
     std::cout << "MELEE: " << weapon_name << "  damage(" << MainCharacter->us.GetEquippedWeaponAt((unsigned long long)WEAPONSLOT::MELEE)->MinDamage << '-' << MainCharacter->us.GetEquippedWeaponAt((unsigned long long)WEAPONSLOT::MELEE)->MaxDamage << ")\n";
@@ -63,9 +92,11 @@ void display_character_sheet() {
   }
 
   std::cin.ignore(100, '\n');
-  std::cout << "\n press enter to continue\n";
+  std::cout << "\npress enter to continue\n";
   char c = getchar();
 }
+
+
 
 void open_inventory() {
 
@@ -73,23 +104,24 @@ void open_inventory() {
   int selected_item_num = 0;
 
   while (!done) {
-    system("clear");
+    clear();
     std::vector<Item*> list_of_items = MainCharacter->us.GetBackpackList();
     std::cout
       << "CURRENT INVENTORY\n"
       << "-----------------\n\n";
     int items_in_backpack_count = 0;
+
+    // Print items
     for (const auto& item : list_of_items) {
-      if (selected_item_num == items_in_backpack_count)
-        std::cout << "> ";
-      else
-        std::cout << "  ";
+
+      if (selected_item_num == items_in_backpack_count) std::cout << "> ";
+      else std::cout << "  ";
+
       std::cout << item->GetData()->Name << '\n';
       if (ItemManager::IsItemPotion(item)) {
         Potion* potion = nullptr;
         ItemManager::CastItemToPotion(item, potion);
-        if (potion)
-          std::cout << "    Quantity: " << potion->Quantity << '\n';
+        if (potion) std::cout << "    Quantity: " << potion->Quantity << '\n';
       }
       items_in_backpack_count++;
     }
@@ -126,12 +158,14 @@ void open_inventory() {
 
 }
 
+
+
 bool combat_inventory() {
   bool done = false;
   bool action_used = false;
   int selected_item_num = 0;
   while (!done) {
-    system("clear");
+    clear();
     auto list_of_items = MainCharacter->us.GetBackpackList();
     std::cout
       << "CURRENT INVENTORY\n"
@@ -187,13 +221,16 @@ bool combat_inventory() {
   return action_used;
 }
 
-bool combat_ability_selection() {
+
+
+bool combat_ability_selection(Fightable* fightable) {
+
   bool ability_done = false;
   bool action_used = false;
   int selected_ability = 0;
   while (!ability_done) {
     auto current_abilities = MainCharacter->us.GetAbilityList();
-    system("clear");
+    clear();
     std::cout
       << "CURRENT ABILITIES\n\n";
     int abilites_in_list_count = 0;
@@ -238,7 +275,7 @@ bool combat_ability_selection() {
         default:
           break;
         }
-        CurrentMonster->monster.HP.ReduceCurrent(total_damage);
+          fightable->monster.HP.ReduceCurrent(total_damage);
       } else {  // itsa heal (probably)
         int total_heal = 0;
         total_heal += current_abilities[selected_ability]->GetHPEffect();
@@ -267,6 +304,8 @@ bool combat_ability_selection() {
   }
   return action_used;
 }
+
+
 
 Item* drop_random_item() {
 
@@ -316,265 +355,360 @@ Item* drop_random_item() {
   return nullptr;
 }
 
-void create_monster(Fightable* in_out, const Player* base_calc) {
-  if (!base_calc) return;
 
-  if (in_out) {
-    delete in_out;
-    in_out = nullptr;
-  }
+Fightable* create_monster() {
+    // - create new Fightable
+    // - insert into ptr_map
+    // - mark into monster_collection
 
-  int lowest_hp = base_calc->us.GetLevel() * 2;
-  int max_hp = (base_calc->us.GetLevel()) * (base_calc->us.GetLevel()) * 8;
 
-  int lowest_dam = base_calc->us.GetLevel();
-  int max_dam = (base_calc->us.GetLevel()) * (base_calc->us.GetLevel()) * 2;
+    int lowest_hp = MainCharacter->us.GetLevel() * 2;
+    int max_hp = (MainCharacter->us.GetLevel()) * (MainCharacter->us.GetLevel()) * 8;
+    int lowest_dam = MainCharacter->us.GetLevel();
+    int max_dam = (MainCharacter->us.GetLevel()) * (MainCharacter->us.GetLevel()) * 2;
 
-  in_out = new Fightable(Random::NTK(lowest_hp, max_hp), lowest_dam, max_dam);
+    Fightable* monster = new Fightable(Random::NTK(lowest_hp, max_hp), lowest_dam, max_dam);
 
-  in_out->xpos = Random::NTK(1, 11);
-  in_out->prev_xpos = in_out->xpos;
-  in_out->ypos = Random::NTK(1, 11);
-  in_out->prev_ypos = in_out->ypos;
+    monster->xpos = Random::NTK(1, 11);
+    monster->ypos = Random::NTK(1, 11);
 
-  while (the_map[in_out->xpos][in_out->ypos] == 'P' || the_map[in_out->xpos][in_out->ypos] == 'x') {
-    in_out->xpos = Random::NTK(1, 11);
-    in_out->prev_xpos = in_out->xpos;
-    in_out->ypos = Random::NTK(1, 11);
-    in_out->prev_ypos = in_out->ypos;
-  }
-  the_map[in_out->xpos][in_out->ypos] = 'M';
-
-  CurrentMonster = in_out;
-}
-
-void fight_sequence(Player& player1) {
-  if (!CurrentMonster) {
-    return;
-  }
-  // options available per turn
-  enum class FightOptions { NONE, ATTACK, INVENTORY, ABILITY };
-  while (player1.IsAlive() && CurrentMonster->IsAlive()) {
-    FightOptions action_taken = FightOptions::NONE;
-    char action = '\0';
-    while (action_taken == FightOptions::NONE) {
-      // display fight interface
-      system("clear");
-      std::cout
-        << "\nPlayer         vs       Monster\n"
-        << "hp: " << player1.us.GetCurrentHP() << '/' << player1.us.GetMaxHP() << "                  hp: " << CurrentMonster->monster.HP.GetCurrent() << '/' << CurrentMonster->monster.HP.GetMax() << '\n\n'
-        << "\naction(a:attack,i:inv,b:abilites): ";
-      action = getchar();
-      switch (action) {
-      case 'a':
-        action_taken = FightOptions::ATTACK;
-        CurrentMonster->monster.HP.ReduceCurrent(player1.us.MeleeAttack());
-        break;
-      case 'i':
-        action_taken = (combat_inventory()) ? FightOptions::INVENTORY : FightOptions::NONE;
-        break;
-      case 'b':
-        action_taken = (combat_ability_selection()) ? FightOptions::ABILITY : FightOptions::NONE;
-        break;
-      default:
-        break;
-      }
+    while (ptr_map[monster->xpos][monster->ypos] != nullptr){
+        monster->xpos = Random::NTK(1, 11);
+        monster->ypos = Random::NTK(1, 11);
     }
 
-    // monster hits when your turn is over
-    if (CurrentMonster->IsAlive()) {
-      // monster attack every turn
-      int damage_we_take = CurrentMonster->monster.Attack();
-      damage_we_take -= player1.us.GetTotalArmor();
-      if (damage_we_take < 1)
-        damage_we_take = 1;
-      player1.us.TakeDamage(damage_we_take);
-    }
+    monster->prev_xpos = monster->xpos;
+    monster->prev_ypos = monster->ypos;
 
-  }
+    ptr_map[monster->xpos][monster->ypos] = monster;
 
-  if (player1.IsAlive()) {
-    std::cout << "\nYou Won vs the Monster!\n";
+    monster_collection.insert(monster);
 
-    // gain xp
-    player1.us.GainEXP(CurrentMonster->xpworth);
-    std::cout << "xp gained: " << CurrentMonster->xpworth << '\n';
-
-    // drop a random item
-    Item* item_drop = drop_random_item();
-    if (item_drop) {
-      ItemManager::MoveToBackpack(item_drop, &player1.us);
-      std::cout << "Item recieved: " << item_drop->GetData()->Name << '\n';
-    }
-
-    // note monsters defeated count and prepare the next one
-    monsters_defeated++;
-    create_monster(CurrentMonster, &player1);
-  } else {
-    std::cout << "\nYou were defeated by the Monster!\n";
-  }
-
-  std::cin.ignore(100, '\n');
-  std::cout << "\n Press Enter to Continue\n";
-  char a = getchar();
-
+    return monster;
 }
 
 
 
+void delete_monster(Fightable*& fightable){
+    // - adjust ptr_map
+    // - delete Fightable object
+    // - set fightable ptr to nullptr
 
-void moveplayeronmap(Player& player1) {
-  // if they haven't move, return and do nothing
-  if (player1.xpos == player1.prev_xpos && player1.ypos == player1.prev_ypos)
-    return;
-
-  if (the_map[player1.xpos][player1.ypos] == 'M') {
-    fight_sequence(player1);
-  }
-
-  // check that the player hasn't moved into a wall
-  if (the_map[player1.xpos][player1.ypos] != 'x') {
-    // draw the charater at new location
-    the_map[player1.xpos][player1.ypos] = 'P';
-    // make old location a black area
-    the_map[player1.prev_xpos][player1.prev_ypos] = ' ';
-
-    player1.prev_xpos = player1.xpos;
-    player1.prev_ypos = player1.ypos;
-  } else {
-
-    player1.xpos = player1.prev_xpos;
-    player1.ypos = player1.prev_ypos;
-  }
+    ptr_map[fightable->xpos][fightable->ypos] = nullptr;
+    delete fightable;
+    fightable = nullptr;
 }
 
 
+void fight_sequence(Fightable* fightable) {
+    // Given pointer to monster, start fight sequence
 
+    if (!fightable) return;
 
-void movemonsteronmap(Fightable& monster) {
-    monster.xpos += Random::NTK(-1, 1);
-    monster.ypos += Random::NTK(-1, 1);
+    // options available per turn
+    enum class FightOptions { NONE, ATTACK, INVENTORY, ABILITY};
 
-    if (the_map[monster.xpos][monster.ypos] == 'P') {
-        fight_sequence(*MainCharacter);
+    while (MainCharacter->IsAlive() && fightable->IsAlive()) {
+
+        FightOptions action_taken = FightOptions::NONE;
+        char action = '\0';
+
+        while (action_taken == FightOptions::NONE) {
+            // display fight interface
+            clear();
+            std::cin.clear();
+            std::cout
+                    << "\n\nPlayer         vs       Monster\n"
+                    << "hp: " << MainCharacter->us.GetCurrentHP() << '/' << MainCharacter->us.GetMaxHP() << "                  hp: "
+                    << fightable->monster.HP.GetCurrent() << '/' << fightable->monster.HP.GetMax()
+                    << "\n\naction(a:attack, i:inv, b:abilites): ";
+            action = getchar();
+            switch (action) {
+                case 'a':
+                    action_taken = FightOptions::ATTACK;
+                    fightable->monster.HP.ReduceCurrent(MainCharacter->us.MeleeAttack());
+                    break;
+                case 'i':
+                    action_taken = (combat_inventory()) ? FightOptions::INVENTORY : FightOptions::NONE;
+                    break;
+                case 'b':
+                    action_taken = (combat_ability_selection(fightable)) ? FightOptions::ABILITY : FightOptions::NONE;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        // monster hits when your turn is over
+        if (fightable->IsAlive()) {
+            int damage_we_take = fightable->monster.Attack();
+            damage_we_take -= MainCharacter->us.GetTotalArmor();
+            if (damage_we_take < 1)
+                damage_we_take = 1;
+            MainCharacter->us.TakeDamage(damage_we_take);
+        }
     }
-    if (the_map[monster.xpos][monster.ypos] != 'x' && (monster.xpos != monster.prev_xpos || monster.ypos != monster.prev_ypos)) {
 
-        the_map[monster.prev_xpos][monster.prev_ypos] = ' ';
-        the_map[monster.xpos][monster.ypos] = 'M';
+    if (MainCharacter->IsAlive()) {
+        std::cout << "\nYou Won vs the Monster!\n";
 
-        monster.prev_xpos = monster.xpos;
-        monster.prev_ypos = monster.ypos;
+        // gain xp
+        MainCharacter->us.GainEXP(fightable->xpworth);
+        std::cout << "XP gained: " << fightable->xpworth << '\n';
+
+        // drop a random item
+        Item *item_drop = drop_random_item();
+        if (item_drop) {
+            ItemManager::MoveToBackpack(item_drop, &MainCharacter->us);
+            std::cout << "Item recieved: " << item_drop->GetData()->Name << '\n';
+        }
+
+        monsters_defeated++;
 
     } else {
-        monster.xpos = monster.prev_xpos;
-        monster.ypos = monster.prev_ypos;
+        std::cout << "\nYou were defeated by the Monster!\n";
+    }
+
+    std::cin.ignore(100, '\n');
+    std::cout << "\npress Enter to Continue\n";
+    char a = getchar();
+}
+
+
+void monster_thread_fn(){
+
+    // Keep creating new monsters when one dies
+
+    Fightable* curr_monster;
+
+    while(true){
+
+        curr_monster = create_monster();
+
+        while(curr_monster->IsAlive()){
+
+            // Sleep random duration
+            std::this_thread::sleep_for(std::chrono::milliseconds (Random::NTK(1000,5000)));
+
+            gLock.lock();
+
+            if(curr_monster->IsAlive()){
+
+                int next_xpos = curr_monster->xpos + Random::NTK(-1, 1);
+                int next_ypos = curr_monster->ypos + Random::NTK(-1, 1);
+
+                // Did not move
+                if (next_xpos == curr_monster->prev_xpos && next_ypos == curr_monster->prev_ypos)
+                    return;
+
+                // Landed on Player
+                if(dynamic_cast<Player*>(ptr_map[next_xpos][next_ypos])){
+                    fight_sequence(curr_monster);
+                    break;
+                }
+
+                    // Move monster
+                else if(!dynamic_cast<Block*>(ptr_map[next_xpos][next_ypos])){
+
+                    curr_monster->prev_xpos = curr_monster->xpos;
+                    curr_monster->prev_ypos = curr_monster->ypos;
+                    ptr_map[curr_monster->prev_xpos][curr_monster->prev_ypos] = nullptr;
+
+                    curr_monster->xpos = next_xpos;
+                    curr_monster->ypos = next_ypos;
+                    ptr_map[curr_monster->xpos][curr_monster->ypos] = curr_monster;
+
+                }
+            }
+
+            gLock.unlock();
+        }
+
+        delete_monster(curr_monster);
     }
 }
+
+
+
+
+
+
+
+
+void move_monsters() {
+
+    std::unordered_set<Fightable*> temp = monster_collection;
+
+    for(Fightable* fightable : temp){
+
+
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void move_player() {
+
+    // Did not move
+    if (MainCharacter->xpos == MainCharacter->prev_xpos && MainCharacter->ypos == MainCharacter->prev_ypos)
+        return;
+
+    // Landed on monster
+    if(dynamic_cast<Fightable*>(ptr_map[MainCharacter->xpos][MainCharacter->ypos]))
+        fight_sequence(dynamic_cast<Fightable*>(ptr_map[MainCharacter->xpos][MainCharacter->ypos]));
+
+    // Move player
+    if(!dynamic_cast<Block*>(ptr_map[MainCharacter->xpos][MainCharacter->ypos])){
+        ptr_map[MainCharacter->prev_xpos][MainCharacter->prev_ypos] = nullptr;
+        ptr_map[MainCharacter->xpos][MainCharacter->ypos] = MainCharacter;
+        MainCharacter->prev_xpos = MainCharacter->xpos;
+        MainCharacter->prev_ypos = MainCharacter->ypos;
+    }else{
+        MainCharacter->xpos = MainCharacter->prev_xpos;
+        MainCharacter->ypos = MainCharacter->prev_ypos;
+    }
+
+}
+
+
+
+
+
+
+
+
 
 
 
 void showmap() {
-  system("clear");
-  for (int i = 0; i < 12; i++) {
-    for (int j = 0; j < 13; j++) {
-      std::cout << the_map[i][j];
+    // Print to terminal based on pointer_map
+
+    clear();
+    for(int i=0; i<12; i++){
+        for(int j=0; j<12; j++){
+            if(dynamic_cast<Block*>(ptr_map[i][j]))             std::cout<<'x';
+            else if(dynamic_cast<Fightable*>(ptr_map[i][j]))    std::cout<<'M';
+            else if(dynamic_cast<Player*>(ptr_map[i][j]))       std::cout<<'P';
+            else                                                std::cout<< " ";
+        }
+        std::cout << '\n';
     }
-    std::cout << '\n';
-  }
 }
 
 
 
 int main(int argc, char** argv) {
 
-  std::cout << "Choose a class: \n"
-    << "1 = Cleric    2 = Warrior\n"
-    << "3 = Rogue     4 = Wizard\n";
-  int choice = 0;
-  while (choice == 0) {
-    std::cin >> choice;
-    std::cout << "chose: " << choice << '\n';
-    if (choice < 1 || choice > 4)
-      choice = 0;
-  }
+    fill_blocks_ptr_map();
+    clear();
+    std::cout << "Choose a class: \n"
+            << "1 = Cleric    2 = Warrior\n"
+            << "3 = Rogue     4 = Wizard\n";
 
-  switch (choice) {
-  case 1:
-  {
-    MainCharacter = new Player(new Cleric());
-  }
-  break;
-  case 2:
-  {
-    MainCharacter = new Player(new Warrior());
-  }
-  break;
-  case 3:
-  {
-    MainCharacter = new Player(new Rogue());
-  }
-  break;
-  case 4:
-  {
-    MainCharacter = new Player(new Wizard());
-  }
-  break;
-  default:
-    return -12;  // failed to make player character
-  }
-  the_map[MainCharacter->xpos][MainCharacter->ypos] = 'P';
-
-  ItemManager::MoveToBackpack(drop_random_item(), &MainCharacter->us);
-  ItemManager::MoveToBackpack(drop_random_item(), &MainCharacter->us);
-
-  create_monster(CurrentMonster, MainCharacter);
-
-  showmap();
-
-  for (;;) {
-
-    std::cout << "\nmove(wasd), inv(i), charsheet(c): \n";
-//    std::cin.clear();
-//    char c = getchar();
-    char c{};
-    std::cin >> c;
-
-    switch (c) {
-    case 'w':
-      MainCharacter->xpos--;
-      break;
-    case 's':
-      MainCharacter->xpos++;
-      break;
-    case 'a':
-      MainCharacter->ypos--;
-      break;
-    case 'd':
-      MainCharacter->ypos++;
-      break;
-    case 'i':
-      open_inventory();
-      break;
-    case 'c':
-      display_character_sheet();
-      break;
-    default:
-      break;
+    int choice = 0;
+    while (choice == 0) {
+        std::cin >> choice;
+        std::cout << "chose: " << choice << '\n';
+        if (choice < 1 || choice > 4)
+            choice = 0;
     }
 
-    std::cin.clear();
+    switch (choice) {
+    case 1:
+    {
+        MainCharacter = new Player(new Cleric());
+    }
+    break;
+    case 2:
+    {
+        MainCharacter = new Player(new Warrior());
+    }
+    break;
+    case 3:
+    {
+        MainCharacter = new Player(new Rogue());
+    }
+    break;
+    case 4:
+    {
+        MainCharacter = new Player(new Wizard());
+    }
+    break;
+    default:
+    return -12;  // failed to make player character
+    }
 
-    moveplayeronmap(*MainCharacter);
+    ptr_map[MainCharacter->xpos][MainCharacter->ypos] = MainCharacter;
 
-    movemonsteronmap(*CurrentMonster);
+    ItemManager::MoveToBackpack(drop_random_item(), &MainCharacter->us);
+    ItemManager::MoveToBackpack(drop_random_item(), &MainCharacter->us);
 
-    if (MainCharacter->IsAlive()) showmap();
-    else break;
+    while(monster_collection.size() < num_monsters){
+        monster_threads.push_back(std::thread(monster_thread_fn));
+    }
 
-  }
+    showmap();
 
-  std::cout << "Total Monsters Defeated: " << monsters_defeated << '\n';
-  char c = getchar();
-  return EXIT_SUCCESS;
+    for (;;) {
+
+        std::cout << '\n' << "move(wasd), inv(i), charsheet(c): \n";
+        //    char c = getchar();
+        char c{};
+        std::cin.clear();
+        std::cin >> c;
+
+        gLock.lock();
+
+        switch (c) {
+        case 'w':
+          MainCharacter->xpos--;
+          break;
+        case 's':
+          MainCharacter->xpos++;
+          break;
+        case 'a':
+          MainCharacter->ypos--;
+          break;
+        case 'd':
+          MainCharacter->ypos++;
+          break;
+        case 'i':
+          open_inventory();
+          break;
+        case 'c':
+          display_character_sheet();
+          break;
+        default:
+          break;
+        }
+
+        std::cin.clear();
+
+        move_player();
+
+        if (MainCharacter->IsAlive()) showmap();
+        else break;
+
+        gLock.unlock();
+    }
+
+    std::cout << "Total Monsters Defeated: " << monsters_defeated << '\n';
+    char c = getchar();
+    return EXIT_SUCCESS;
 }

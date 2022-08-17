@@ -2,24 +2,27 @@
 #include <playercharacter.h>
 #include <playableclasses_fwd.h>
 #include <monster.h>
+#include <iostream>
 
 
-char the_map[12][13] =
-{ "xxxxxxxxxxxx",
-  "x          x",
-  "x          x",
-  "x          x",
-  "x          x",
-  "x          x",
-  "x          x",
-  "x          x",
-  "x          x",
-  "x          x",
-  "x          x",
-  "xxxxxxxxxxxx" };
+struct Entity {
+    virtual void fn(){};
+};
 
 
-struct Player {
+
+
+struct Block : public Entity {};
+
+
+
+
+
+void clear(){
+    std::cout << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
+}
+
+struct Player : public Entity {
 
     PlayerCharacter us;
     int prev_xpos = 3;
@@ -34,7 +37,7 @@ struct Player {
 };
 
 
-struct Fightable {
+struct Fightable : Entity {
 
     Monster monster;
     int prev_xpos{};
