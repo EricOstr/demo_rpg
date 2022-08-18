@@ -1,6 +1,6 @@
 # C++ Demo Role Player Game
 
-This is a personal project where I extend a simple terminal based role player game built from scratch ([link for original game](https://github.com/codetechandtutorials/demo_rpg/releases/tag/ep20)). 
+This is a personal project where I extend a terminal based role player game built from scratch ([link for original game](https://github.com/codetechandtutorials/demo_rpg/releases/tag/ep20)). 
 
 The goal of the game is to slay as many monsters as possible. On startup, the player may choose to play as a Cleric, Warrior, Rogue or Wizard - each having their own strengths and weaknesses. Using the keyboard characters a,w,s,d the player moves around the game board chasing monsters, equip items from inventory or examine the players statistics in the character sheet. If the monster and player clash, the control shifts to 'battle mode'. This is a turn based fight sequence where the player may attack, use items or exhaust abilities. Once the player slays a monster, the player receives experience points (XP) and possibly new items. Accumulating XP allows the player to level up, which increases the player's stats (HP, Armor, Resistance, Strength, Agility, Intelligence). The game ends when the player is defeated by a monster and a total score is shown.
 
