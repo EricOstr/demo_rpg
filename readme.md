@@ -1,4 +1,4 @@
-# C++ Demo Role Player Game
+# C++ Project - Role Player Game
 
 This is a personal project where I extend a terminal based role player game built from scratch ([link for original game](https://github.com/codetechandtutorials/demo_rpg/releases/tag/ep20)). 
 
